@@ -139,6 +139,10 @@
   });
 
   /* ---------- Consultation / contact form ---------- */
+  // Google Apps Script Web App — appends submissions to the "DearLover Leads"
+  // Google Sheet and emails Valerie a copy so she can prep before each call.
+  const LEADS_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyUefu0f2xwJLtXhXs77Gs2MdyPFn0ZSjTd_-BsLdoXVCqX7FJ6cez3HZYrume2VKyLbg/exec';
+
   document.querySelectorAll('form[data-confirm]').forEach(form => {
     const note = form.querySelector('.form-note');
     form.addEventListener('submit', e => {
@@ -149,6 +153,18 @@
         if (note) note.textContent = 'Please add your name and email so we can reach you.';
         return;
       }
+
+      if (LEADS_SHEET_URL && !LEADS_SHEET_URL.startsWith('PASTE_')) {
+        // Apps Script Web Apps don't return CORS headers we can read, so we fire
+        // in "no-cors" mode — the row still gets written, we just can't inspect
+        // the response. We optimistically show success once the request is sent.
+        fetch(LEADS_SHEET_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          body: new FormData(form)
+        }).catch(() => { /* network hiccup — the on-page message still confirms locally */ });
+      }
+
       const first = name ? name.value.trim().split(' ')[0] : 'there';
       if (note) note.textContent = `Thank you, ${first}. Your story has found its first chapter — we'll confirm your consultation within 24 hours.`;
       form.reset();

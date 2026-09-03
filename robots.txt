@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://dearlover.co/sitemap.xml
+Sitemap: https://dearmylover.vercel.app/sitemap.xml

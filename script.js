@@ -171,6 +171,82 @@
     });
   });
 
+  /* ---------- Consultation payment (Paystack) ---------- */
+  // The consultation form no longer saves/emails on submit — it starts a Paystack
+  // payment first. The Sheet row + "payment received" email only fire after
+  // /api/verify-payment confirms the transaction actually succeeded (below).
+  const consultationForm = document.getElementById('consultationForm');
+  if (consultationForm) {
+    const note = consultationForm.querySelector('.form-note');
+    const submitBtn = document.getElementById('consultationSubmit');
+
+    consultationForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const name = consultationForm.querySelector('[name="firstName"]');
+      const email = consultationForm.querySelector('[name="email"]');
+      if (!name.value.trim() || !email.value.trim()) {
+        if (note) note.textContent = 'Please add your name and email so we can reach you.';
+        return;
+      }
+
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Redirecting to payment…'; }
+      if (note) note.textContent = '';
+
+      const data = Object.fromEntries(new FormData(consultationForm).entries());
+      try {
+        const res = await fetch('/api/initialize-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (!res.ok || !result.authorization_url) {
+          throw new Error(result.error || 'Could not start payment.');
+        }
+        window.location.href = result.authorization_url;
+      } catch (err) {
+        if (note) note.textContent = err.message || 'Something went wrong starting payment. Please try again, or WhatsApp us directly.';
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Continue to Payment'; }
+      }
+    });
+  }
+
+  // Returning from Paystack: consultation.html gets ?reference=xxx appended.
+  // Verify it server-side before treating the booking as real.
+  const step2 = document.getElementById('step2');
+  const paymentStatus = document.getElementById('paymentStatus');
+  const paymentReference = new URLSearchParams(window.location.search).get('reference');
+  if (step2 && paymentStatus && paymentReference) {
+    paymentStatus.hidden = false;
+    paymentStatus.innerHTML = '<p style="color:var(--ink-soft)">Verifying your payment…</p>';
+
+    fetch(`/api/verify-payment?reference=${encodeURIComponent(paymentReference)}`)
+      .then(r => r.json())
+      .then(result => {
+        if (!result.success) {
+          paymentStatus.innerHTML = '<p style="color:var(--wine)">We couldn\'t confirm that payment went through. If you were charged, please WhatsApp or email us and we\'ll sort it out — otherwise, feel free to try again above.</p>';
+          return;
+        }
+
+        // Payment confirmed — now (and only now) log the lead + notify Valerie.
+        if (LEADS_SHEET_URL && !LEADS_SHEET_URL.startsWith('PASTE_')) {
+          const sheetPayload = new URLSearchParams({ formType: 'consultation', ...result.formData, email: result.email || '' });
+          fetch(LEADS_SHEET_URL, { method: 'POST', mode: 'no-cors', body: sheetPayload }).catch(() => {});
+        }
+
+        const first = (result.formData && result.formData.firstName) || 'there';
+        paymentStatus.innerHTML = `<p style="color:var(--wine);font-weight:500">Payment received, ${first} — thank you! We'll be in touch within 24 hours.</p>`;
+
+        // Clean the URL so refreshing doesn't re-verify, then reveal Step 2.
+        window.history.replaceState({}, document.title, window.location.pathname);
+        step2.hidden = false;
+        step2.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      })
+      .catch(() => {
+        paymentStatus.innerHTML = '<p style="color:var(--wine)">We couldn\'t reach the payment server to confirm your booking. Please WhatsApp or email us with your payment reference and we\'ll confirm manually.</p>';
+      });
+  }
+
   /* ---------- Reveal on scroll (with skip-safety) ---------- */
   const revealEls = document.querySelectorAll('.section-head, .tl-step, .pkg, .bride-card, .intro-lines, .intro-body, .prose > *, .faq-item, .pkg-detail, .form-card, .express-note, .pkg-included');
   revealEls.forEach(el => el.classList.add('reveal'));

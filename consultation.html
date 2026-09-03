@@ -103,11 +103,12 @@
 
     <div class="container" style="max-width:760px;margin:0 auto 1.2rem">
       <p class="eyebrow" style="text-align:center">Step 1 of 2</p>
-      <h2 style="text-align:center;font-size:clamp(1.5rem,3.5vw,2rem);margin-bottom:2rem">Tell us about your wedding</h2>
+      <h2 style="text-align:center;font-size:clamp(1.5rem,3.5vw,2rem);margin-bottom:.6rem">Tell us about your wedding</h2>
+      <p class="center" style="color:var(--ink-soft)">A ₦30,000 consultation fee secures your slot — you'll be taken to secure payment after submitting.</p>
     </div>
 
     <div class="container">
-      <form class="form-card" data-confirm novalidate>
+      <form class="form-card" id="consultationForm" novalidate>
         <input type="hidden" name="formType" value="consultation" />
         <div class="form-grid">
           <div class="field field-full">
@@ -142,20 +143,23 @@
           </div>
           <div class="field field-full"><label for="aesthetic">Wedding aesthetic &amp; inspiration</label><input id="aesthetic" name="aesthetic" type="text" placeholder="A few words, or Instagram / Pinterest links" /></div>
           <div class="field field-full"><label for="story">Your story</label><textarea id="story" name="story" rows="4" placeholder="Tell us a little about your love story and the bride you envision becoming…"></textarea></div>
-          <button type="submit" class="btn btn-wine btn-block">Book Your Consultation</button>
+          <button type="submit" class="btn btn-wine btn-block" id="consultationSubmit">Continue to Payment</button>
           <p class="form-note" role="status"></p>
         </div>
       </form>
       <p class="center" style="margin-top:1.4rem;color:var(--ink-soft);font-size:.9rem">Prefer to just ask a question first? Email <a href="mailto:valeriemhilla@gmail.com" style="color:var(--wine)">valeriemhilla@gmail.com</a> or WhatsApp <a href="https://wa.me/2347065012217" target="_blank" rel="noopener" style="color:var(--wine)">+234 706 501 2217</a>.</p>
+
+      <!-- Filled in by script.js when returning from Paystack with ?reference= -->
+      <div id="paymentStatus" class="center" style="margin-top:2rem" hidden></div>
     </div>
   </section>
 
-  <!-- Step 2 — pick a time on Valerie's real calendar -->
-  <section class="page-section" style="background:var(--blush)">
+  <!-- Step 2 — pick a time on Valerie's real calendar. Hidden until payment is verified. -->
+  <section class="page-section" id="step2" style="background:var(--blush)" hidden>
     <div class="container" style="max-width:760px;margin:0 auto">
       <p class="eyebrow" style="text-align:center">Step 2 of 2</p>
       <h2 style="text-align:center;font-size:clamp(1.5rem,3.5vw,2rem);margin-bottom:.6rem">Choose your time</h2>
-      <p class="center" style="color:var(--ink-soft);margin-bottom:2rem">Once you've told us about your wedding above, pick a slot on our live calendar — it opens in a new tab and books straight onto our schedule.</p>
+      <p class="center" style="color:var(--ink-soft);margin-bottom:2rem">Payment received — pick a slot on our live calendar to lock in your consultation.</p>
       <p class="center"><a href="https://calendar.app.google/GtURkjVk61ZhKm5E8" target="_blank" rel="noopener" class="btn btn-wine btn-block" style="max-width:420px;margin:0 auto">Pick Your Time</a></p>
     </div>
   </section>

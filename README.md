@@ -20,7 +20,7 @@ Then visit `http://localhost:8777`.
 | `faq.html` | FAQ accordion |
 | `consultation.html` | Book a Consultation (booking form) |
 | `bride-naza.html` | Naza's bride story — real quotes (was `bride-augusta.html`; "Augusta" was a placeholder name) |
-| `bride-ehmi-soji.html` | Ehmi & Soji's bride story — 3 looks (Traditional / White / Reception) + film, real quotes |
+| `bride-ehmi.html` | Ehmi's bride story — 3 looks (Traditional / White / Reception) + film, real quotes |
 | `bride-oge.html` | Oge's bride story — 2 looks (Traditional / White), films, real quotes |
 
 - The landing is deliberately short so it doesn't overload the visitor. Heavier content
@@ -43,9 +43,9 @@ Then visit `http://localhost:8777`.
 ### Case studies
 - **Augusta** — `augusta-1…6.jpg`.
 - **Oge** — the wine/burgundy traditional + ivory films `clip-1…9.mp4` (originally the WhatsApp clips).
-- **Ehmi & Soji** — 4 looks: Traditional (`es-trad-*.jpg` + `clip-ehmi-trad.mp4`), Edo/red-coral
+- **Ehmi** — 4 looks: Traditional (`es-trad-*.jpg` + `clip-ehmi-trad.mp4`), Edo/red-coral
   (`es-trad2-01…06.jpg`), White Wedding (`es-white-10…24`), After Party/mint (`es-white-01…09`).
-- **Ehmi & Soji (legacy names)** — `es-trad-01…16.jpg`, `es-white-01…31.jpg`, and `clip-ehmi-trad.mp4`
+- **Ehmi (legacy names)** — `es-trad-01…16.jpg`, `es-white-01…31.jpg`, and `clip-ehmi-trad.mp4`
   (a 16s web highlight trimmed + compressed from the 197 MB / 3-min raw `EMHI & SOJI (TRAD).mp4`
   via macOS `avconvert`). The raw original stays in `Assets/Photo's and videos/` and is *not*
   served by the site. To use a different segment: `avconvert --preset Preset960x540 --start <s>

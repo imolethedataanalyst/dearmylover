@@ -16,7 +16,7 @@
     { type: 'img',   file: 'es-white-04.jpg',    cap: 'Ehmi · The Reception' },
     { type: 'video', file: 'clip-7.mp4',         cap: 'Oge · Gele Portrait' },
     { type: 'img',   file: 'augusta-2.jpg',      cap: 'Naza · The Celebration' },
-    { type: 'img',   file: 'es-trad-13.jpg',     cap: 'Ehmi & Soji · Together' },
+    { type: 'img',   file: 'es-trad-13.jpg',     cap: 'Ehmi · Together' },
     { type: 'img',   file: 'augusta-6.jpg',      cap: 'An Intimate Moment' },
     { type: 'img',   file: 'es-white-23.jpg',    cap: 'Ehmi · The White Wedding' },
     { type: 'video', file: 'clip-3.mp4',         cap: 'Oge · The Second Look' },

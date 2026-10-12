@@ -154,19 +154,32 @@
         return;
       }
 
+      const first = name ? name.value.trim().split(' ')[0] : 'there';
+      let sent = Promise.resolve();
       if (LEADS_SHEET_URL && !LEADS_SHEET_URL.startsWith('PASTE_')) {
         // Apps Script Web Apps don't return CORS headers we can read, so we fire
         // in "no-cors" mode — the row still gets written, we just can't inspect
-        // the response. We optimistically show success once the request is sent.
-        fetch(LEADS_SHEET_URL, {
+        // the response. keepalive lets the request finish even if we navigate away.
+        sent = fetch(LEADS_SHEET_URL, {
           method: 'POST',
           mode: 'no-cors',
+          keepalive: true,
           body: new FormData(form)
-        }).catch(() => { /* network hiccup — the on-page message still confirms locally */ });
+        }).catch(() => { /* network hiccup — the thank-you still shows locally */ });
       }
 
-      const first = name ? name.value.trim().split(' ')[0] : 'there';
-      if (note) note.textContent = `Thank you, ${first}. Your story has found its first chapter — we'll confirm your consultation within 24 hours.`;
+      // Forms with data-redirect land on their own thank-you page (a real URL ad
+      // platforms can track). A one-time session flag lets that page tell a genuine
+      // sign-up apart from someone who just opened the link.
+      const redirectTo = form.dataset.redirect;
+      if (redirectTo) {
+        try { sessionStorage.setItem('dl_planner_ok', JSON.stringify({ first: first })); } catch (_) {}
+        if (note) note.textContent = 'Sending your planner…';
+        Promise.race([sent, new Promise(r => setTimeout(r, 2500))]).then(() => { window.location.href = redirectTo; });
+        return;
+      }
+
+      if (note) note.textContent = `Thank you, ${first}. Your story has found its first chapter — we'll be in touch soon.`;
       form.reset();
     });
   });
@@ -211,40 +224,93 @@
     });
   }
 
-  // Returning from Paystack: consultation.html gets ?reference=xxx appended.
-  // Verify it server-side before treating the booking as real.
-  const step2 = document.getElementById('step2');
-  const paymentStatus = document.getElementById('paymentStatus');
-  const paymentReference = new URLSearchParams(window.location.search).get('reference');
-  if (step2 && paymentStatus && paymentReference) {
-    paymentStatus.hidden = false;
-    paymentStatus.innerHTML = '<p style="color:var(--ink-soft)">Verifying your payment…</p>';
+  // Older return links (consultation.html?reference=…) forward to the thank-you page.
+  const legacyRef = new URLSearchParams(window.location.search).get('reference');
+  if (consultationForm && legacyRef) {
+    window.location.replace('thank-you.html?reference=' + encodeURIComponent(legacyRef));
+  }
 
-    fetch(`/api/verify-payment?reference=${encodeURIComponent(paymentReference)}`)
-      .then(r => r.json())
-      .then(result => {
-        if (!result.success) {
-          paymentStatus.innerHTML = '<p style="color:var(--wine)">We couldn\'t confirm that payment went through. If you were charged, please WhatsApp or email us and we\'ll sort it out — otherwise, feel free to try again above.</p>';
-          return;
-        }
+  /* ---------- Thank-you page: paid consultation (thank-you.html) ---------- */
+  // Paystack sends her back here with ?reference=. We verify it server-side first;
+  // the booking is only counted — Sheet row, emails, and the dataLayer event Meta
+  // tracks — once Paystack confirms the money actually arrived, and only once per
+  // payment even if she refreshes.
+  const tyRoot = document.getElementById('thankYouRoot');
+  if (tyRoot) {
+    const qs = new URLSearchParams(window.location.search);
+    const ref = qs.get('reference') || qs.get('trxref');
+    const $ = id => document.getElementById(id);
+    const show = state => ['tyVerifying', 'tySuccess', 'tyFailed'].forEach(id => { $(id).hidden = id !== state; });
+    const fail = (eyebrow, title, lead) => {
+      $('tyEyebrow').textContent = eyebrow;
+      $('tyTitle').textContent = title;
+      $('tyLead').textContent = lead;
+      show('tyFailed');
+    };
 
-        // Payment confirmed — now (and only now) log the lead + notify Valerie.
-        if (LEADS_SHEET_URL && !LEADS_SHEET_URL.startsWith('PASTE_')) {
-          const sheetPayload = new URLSearchParams({ formType: 'consultation', ...result.formData, email: result.email || '' });
-          fetch(LEADS_SHEET_URL, { method: 'POST', mode: 'no-cors', body: sheetPayload }).catch(() => {});
-        }
+    if (!ref) {
+      fail('No payment found', "We couldn't find a payment.",
+        "This page is for brides who've just completed their consultation payment. If that's you, message us on WhatsApp and we'll sort it out right away.");
+    } else {
+      fetch(`/api/verify-payment?reference=${encodeURIComponent(ref)}`)
+        .then(r => r.json())
+        .then(result => {
+          if (!result.success) {
+            fail('Payment not confirmed', "We couldn't confirm that payment.",
+              "If you were charged, message us on WhatsApp with your payment reference and we'll confirm it by hand. Otherwise you're welcome to try again.");
+            return;
+          }
 
-        const first = (result.formData && result.formData.firstName) || 'there';
-        paymentStatus.innerHTML = `<p style="color:var(--wine);font-weight:500">Payment received, ${first} — thank you! We'll be in touch within 24 hours.</p>`;
+          const d = result.formData || {};
+          const first = d.firstName || 'there';
+          $('tyEyebrow').textContent = 'Payment received';
+          $('tyTitle').textContent = `Thank you, ${first}.`;
+          $('tyLead').textContent = 'Your consultation is secured. One last step — choose the time that suits you.';
+          const em = $('tyEmail');
+          if (em) em.textContent = result.email || d.email || 'your inbox';
+          show('tySuccess');
 
-        // Clean the URL so refreshing doesn't re-verify, then reveal Step 2.
-        window.history.replaceState({}, document.title, window.location.pathname);
-        step2.hidden = false;
-        step2.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      })
-      .catch(() => {
-        paymentStatus.innerHTML = '<p style="color:var(--wine)">We couldn\'t reach the payment server to confirm your booking. Please WhatsApp or email us with your payment reference and we\'ll confirm manually.</p>';
-      });
+          // Count this payment once.
+          const key = 'dl_paid_' + ref;
+          let already = false;
+          try { already = !!localStorage.getItem(key); localStorage.setItem(key, '1'); } catch (_) {}
+          if (already) return;
+
+          if (LEADS_SHEET_URL && !LEADS_SHEET_URL.startsWith('PASTE_')) {
+            const payload = new URLSearchParams(Object.assign({}, d, { formType: 'consultation', email: result.email || d.email || '', reference: ref }));
+            fetch(LEADS_SHEET_URL, { method: 'POST', mode: 'no-cors', keepalive: true, body: payload }).catch(() => {});
+          }
+
+          // For Google Tag Manager → Meta Pixel. event_id = payment reference, so the
+          // browser event and a later server-side (CAPI) event can be de-duplicated.
+          window.dataLayer = window.dataLayer || [];
+          window.dataLayer.push({
+            event: 'consultation_paid',
+            event_id: ref,
+            transaction_id: ref,
+            value: result.amount ? result.amount / 100 : 30000,
+            currency: 'NGN'
+          });
+        })
+        .catch(() => fail('Could not confirm', "We couldn't reach the payment server.",
+          "Please message us on WhatsApp with your payment reference and we'll confirm your booking manually."));
+    }
+  }
+
+  /* ---------- Thank-you page: free planner (planner-thanks.html) ---------- */
+  const plannerRoot = document.getElementById('plannerThanksRoot');
+  if (plannerRoot) {
+    let flag = null;
+    try {
+      flag = JSON.parse(sessionStorage.getItem('dl_planner_ok') || 'null');
+      sessionStorage.removeItem('dl_planner_ok'); // one sign-up = one conversion
+    } catch (_) {}
+    if (flag) {
+      const nameEl = document.getElementById('ptName');
+      if (nameEl && flag.first && flag.first !== 'there') nameEl.textContent = `, ${flag.first}`;
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({ event: 'planner_signup', value: 0, currency: 'NGN' });
+    }
   }
 
   /* ---------- Reveal on scroll (with skip-safety) ---------- */

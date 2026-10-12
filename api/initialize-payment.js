@@ -34,7 +34,7 @@ export default async function handler(req, res) {
         email,
         amount: CONSULTATION_FEE_NGN * 100, // Paystack expects kobo
         currency: 'NGN',
-        callback_url: `${origin}/consultation.html`,
+        callback_url: `${origin}/thank-you.html`,
         metadata: {
           formType: 'consultation',
           type: data.type || '',
